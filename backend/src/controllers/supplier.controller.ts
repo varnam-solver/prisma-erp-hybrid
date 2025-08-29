@@ -1,15 +1,15 @@
 // src/controllers/supplier.controller.ts
 
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import * as SupplierService from '../services/supplier.service';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
 
-// This will be replaced with real authentication later
-const MOCK_TENANT_ID = '6531932a-804b-4f0a-9f68-ed851aa11178';
-
-// --- Controller to GET all suppliers ---
-export const getAllSuppliers = async (req: Request, res: Response) => {
+export const getAllSuppliers = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const suppliers = await SupplierService.getAllSuppliersByTenant(MOCK_TENANT_ID);
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) return res.status(401).json({ error: 'Tenant ID missing.' });
+
+    const suppliers = await SupplierService.getAllSuppliersByTenant(tenantId);
     res.json(suppliers);
   } catch (error) {
     console.error(error);
@@ -17,12 +17,13 @@ export const getAllSuppliers = async (req: Request, res: Response) => {
   }
 };
 
-// --- Controller to POST (create) a new supplier ---
-export const createNewSupplier = async (req: Request, res: Response) => {
+export const createNewSupplier = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    // The supplier data comes from the request body
-    const newSupplier = await SupplierService.createSupplier(req.body, MOCK_TENANT_ID);
-    res.status(201).json(newSupplier); // 201 status means "Created"
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) return res.status(401).json({ error: 'Tenant ID missing.' });
+
+    const newSupplier = await SupplierService.createSupplier(req.body, tenantId);
+    res.status(201).json(newSupplier);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to create supplier' });

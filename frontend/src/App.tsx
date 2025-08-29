@@ -15,29 +15,29 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          {/* --- THIS IS THE CHANGE --- */}
-          {/* The default page is now the NewSalePage for testing */}
-          <Route path="/" element={<NewSalePage />} /> 
-          {/* --- END OF CHANGE --- */}
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <Routes>
+          {/* --- THIS IS THE FIX --- */}
+          {/* The default page is now correctly set back to the LoginPage */}
+          <Route path="/" element={<LoginPage />} />
+          {/* --- END OF FIX --- */}
 
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/inventory" element={<InventoryPage />} />
-          <Route path="/sales/new" element={<NewSalePage />} />
-          <Route path="/purchases/new" element={<BuyStockPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/help" element={<HelpPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/inventory" element={<InventoryPage />} />
+          <Route path="/sales/new" element={<NewSalePage />} />
+          <Route path="/purchases/new" element={<BuyStockPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/help" element={<HelpPage />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
 );
 
 export default App;

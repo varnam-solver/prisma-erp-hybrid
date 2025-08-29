@@ -2,10 +2,10 @@
 
 import { Router } from 'express';
 import { createNewSale } from '../controllers/sale.controller';
+import { protect } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Route to POST (create) a new sale
-router.post('/sales', createNewSale);
+router.post('/sales', protect, createNewSale);
 
 export default router;

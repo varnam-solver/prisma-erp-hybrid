@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react"
-import { ArrowLeft, Search, Plus, Loader2 } from "lucide-react"
-import { useNavigate } from "react-router-dom"
+import { Search, Plus, Loader2 } from "lucide-react"
 import { AnimatedButton } from "@/components/ui/animated-button"
 import apiClient from "@/api/axiosConfig"
 import { Sidebar } from "@/components/layout/sidebar"
@@ -17,21 +16,21 @@ interface ApiMedicine {
     batchId: string;
     batchNumber: string;
     expiryDate: string;
-    pricePerUnit: number;
+    pricePerUnit: number | string; // Accept both number and string
     stockInUnits: number;
     unitsPerPack: number;
   }[];
 }
 
 interface ApiCustomer {
-    id: string;
-    name: string;
-    phone: string | null;
-    address: string | null;
+  id: string;
+  name: string;
+  phone: string | null;
+  address: string | null;
 }
 
 interface CartItem {
-  id: string; 
+  id: string;
   medicineId: string;
   batchId: string;
   name: string;
@@ -42,8 +41,6 @@ interface CartItem {
 }
 
 export default function NewSalePage() {
-  const navigate = useNavigate();
-
   // --- Refs for Focus Management ---
   const customerNameRef = useRef<HTMLInputElement>(null);
   const phoneNumberRef = useRef<HTMLInputElement>(null);
@@ -70,7 +67,7 @@ export default function NewSalePage() {
   const [selectedBatchId, setSelectedBatchId] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // --- State for Keyboard Navigation ---
   const [activeIndex, setActiveIndex] = useState(-1);
 
@@ -91,12 +88,12 @@ export default function NewSalePage() {
     const fetchAndFilterCustomers = async () => {
       try {
         const response = await apiClient.get(`/customers`);
-        const filtered = response.data.filter((cust: ApiCustomer) => 
-            cust.name.toLowerCase().includes(customerSearch.toLowerCase())
+        const filtered = response.data.filter((cust: ApiCustomer) =>
+          cust.name.toLowerCase().includes(customerSearch.toLowerCase())
         );
         setCustomerSearchResults(filtered.length > 0 ? filtered : []);
       } catch (err) {
-        console.error("Failed to search customers", err);
+        setCustomerSearchResults([]);
       }
     };
     const delayDebounceFn = setTimeout(() => fetchAndFilterCustomers(), 300);
@@ -125,7 +122,7 @@ export default function NewSalePage() {
         setMedicineResults(response.data);
         setActiveIndex(-1);
       } catch (err) {
-        console.error('Failed to fetch medicines', err);
+        setMedicineResults([]);
       }
       setIsLoading(false);
     };
@@ -139,11 +136,8 @@ export default function NewSalePage() {
     setMedicineResults([]);
     setTimeout(() => batchSelectRef.current?.focus(), 0);
   };
-  
-  const addToCart = (e?: React.MouseEvent | React.FormEvent) => {
-    e?.preventDefault();
-    e?.stopPropagation();
-    
+
+  const addToCart = useCallback(() => {
     if (!selectedMedicine || !selectedBatchId || !quantity) return;
     const batch = selectedMedicine.batches.find(b => b.batchId === selectedBatchId);
     if (!batch) return;
@@ -152,12 +146,21 @@ export default function NewSalePage() {
       alert(`Error: Only ${batch.stockInUnits} units available.`);
       return;
     }
+    // Ensure price is always a number
+    const pricePerUnit = Number(batch.pricePerUnit);
+    if (isNaN(pricePerUnit)) {
+      alert("Invalid price for this batch.");
+      return;
+    }
     const newItem: CartItem = {
       id: `${selectedMedicine.medicineId}-${batch.batchId}`,
-      medicineId: selectedMedicine.medicineId, batchId: batch.batchId,
-      name: selectedMedicine.brandName, batch: batch.batchNumber,
-      quantity: quantityNum, price: batch.pricePerUnit,
-      total: quantityNum * batch.pricePerUnit
+      medicineId: selectedMedicine.medicineId,
+      batchId: batch.batchId,
+      name: selectedMedicine.brandName,
+      batch: batch.batchNumber,
+      quantity: quantityNum,
+      price: pricePerUnit,
+      total: quantityNum * pricePerUnit
     };
     const existingItemIndex = cartItems.findIndex(item => item.id === newItem.id);
     if (existingItemIndex > -1) {
@@ -168,14 +171,14 @@ export default function NewSalePage() {
     } else {
       setCartItems(prev => [...prev, newItem]);
     }
-    setMedicineSearch(""); setSelectedMedicine(null); setSelectedBatchId(""); setQuantity("1");
-    medicineSearchRef.current?.focus();
-  };
-  
-  const generateInvoice = useCallback(async (e?: React.MouseEvent | React.FormEvent) => {
-    e?.preventDefault();
-    e?.stopPropagation();
-    
+    setMedicineSearch("");
+    setSelectedMedicine(null);
+    setSelectedBatchId("");
+    setQuantity("1");
+    setTimeout(() => medicineSearchRef.current?.focus(), 0);
+  }, [selectedMedicine, selectedBatchId, quantity, cartItems]);
+
+  const generateInvoice = useCallback(async () => {
     if (cartItems.length === 0 || (!selectedCustomer && !customerSearch)) {
       alert("Please add a customer and items to the cart.");
       return;
@@ -186,7 +189,8 @@ export default function NewSalePage() {
         const response = await apiClient.post('/customers', { name: customerSearch, phone: phoneNumber, address });
         customerIdToUse = response.data.id;
       } catch (err) {
-        alert('Failed to create new customer.'); return;
+        alert('Failed to create new customer.');
+        return;
       }
     }
     const saleData = {
@@ -196,14 +200,35 @@ export default function NewSalePage() {
     try {
       const response = await apiClient.post('/sales', saleData);
       alert(`Invoice generated! Sale ID: ${response.data.id}`);
-      setCustomerSearch(""); setSelectedCustomer(null); setPhoneNumber(""); setAddress("");
-      setDoctorName(""); setPrescriptionNumber("");
+      setCustomerSearch("");
+      setSelectedCustomer(null);
+      setPhoneNumber("");
+      setAddress("");
+      setDoctorName("");
+      setPrescriptionNumber("");
       setCartItems([]);
       customerNameRef.current?.focus();
     } catch (err: any) {
       alert(`Error: ${err.response?.data?.error || 'Failed to generate invoice'}`);
     }
   }, [cartItems, customerSearch, phoneNumber, address, selectedCustomer]);
+
+  // --- Keyboard Navigation Handlers ---
+  const handleKeyDown = (e: React.KeyboardEvent, nextRef?: React.RefObject<any>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (nextRef?.current) {
+        setTimeout(() => nextRef.current?.focus(), 0);
+      }
+    }
+  };
+
+  const handleAddressKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      setTimeout(() => medicineSearchRef.current?.focus(), 0);
+    }
+  };
 
   const handleMedicineSearchKeyDown = (e: React.KeyboardEvent) => {
     if (medicineResults.length > 0) {
@@ -217,9 +242,26 @@ export default function NewSalePage() {
         e.preventDefault();
         handleSelectMedicine(medicineResults[activeIndex]);
       }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
     }
   };
 
+  const handleBatchSelectKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      setTimeout(() => quantityRef.current?.focus(), 0);
+    }
+  };
+
+  const handleQuantityKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addToCart();
+    }
+  };
+
+  // Alt+Enter for invoice
   useEffect(() => {
     const handleAltEnter = (e: KeyboardEvent) => {
       if (e.altKey && e.key === 'Enter') {
@@ -231,157 +273,218 @@ export default function NewSalePage() {
     return () => window.removeEventListener('keydown', handleAltEnter);
   }, [generateInvoice]);
 
+  // Clear all items handler
+  const clearAllItems = () => {
+    setCartItems([]);
+    medicineSearchRef.current?.focus();
+  };
+
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const grandTotal = cartItems.reduce((sum, item) => sum + item.total, 0);
 
   const selectedBatch = selectedMedicine?.batches.find(b => b.batchId === selectedBatchId);
   const strips = selectedBatch && selectedBatch.unitsPerPack > 0 ? (parseInt(quantity) / selectedBatch.unitsPerPack) : 0;
 
+  // --- Render ---
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header title="New Sale" />
         <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-7xl mx-auto space-y-6">
-            {/* Customer Information */}
-            <div className="bg-card rounded-lg p-6 border border-border">
-              <h2 className="text-lg font-semibold mb-4">Customer Information</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative">
+          <div>
+            <div className="max-w-7xl mx-auto space-y-6">
+              {/* Customer Information */}
+              <div className="bg-card rounded-lg p-6 border border-border">
+                <h2 className="text-lg font-semibold mb-4">Customer Information</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="relative">
+                    <input
+                      ref={customerNameRef}
+                      type="text"
+                      value={customerSearch}
+                      onChange={(e) => setCustomerSearch(e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, phoneNumberRef)}
+                      placeholder="Enter customer name *"
+                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                    />
+                    {customerSearchResults.length > 0 && (
+                      <div className="absolute z-20 w-full mt-1 bg-card border rounded-md shadow-lg">
+                        {customerSearchResults.map(cust => (
+                          <div key={cust.id} onClick={() => handleSelectCustomer(cust)} className="p-2 hover:bg-muted cursor-pointer">
+                            {cust.name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <input
-                    ref={customerNameRef}
+                    ref={phoneNumberRef}
                     type="text"
-                    value={customerSearch}
-                    onChange={(e) => setCustomerSearch(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') phoneNumberRef.current?.focus(); }}
-                    placeholder="Enter customer name *"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, doctorNameRef)}
+                    placeholder="Enter phone number"
                     className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
                   />
-                  {customerSearchResults.length > 0 && (
-                    <div className="absolute z-20 w-full mt-1 bg-card border rounded-md shadow-lg">
-                      {customerSearchResults.map(cust => (
-                        <div key={cust.id} onClick={() => handleSelectCustomer(cust)} className="p-2 hover:bg-muted cursor-pointer">
-                          {cust.name}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <input ref={phoneNumberRef} type="text" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') doctorNameRef.current?.focus(); }} placeholder="Enter phone number" className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm" />
-                <input ref={doctorNameRef} type="text" value={doctorName} onChange={(e) => setDoctorName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') prescriptionNumberRef.current?.focus(); }} placeholder="Enter doctor name" className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm" />
-                <input ref={prescriptionNumberRef} type="text" value={prescriptionNumber} onChange={(e) => setPrescriptionNumber(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addressRef.current?.focus(); }} placeholder="Enter prescription number" className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm" />
-                <textarea ref={addressRef} value={address} onChange={(e) => setAddress(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); medicineSearchRef.current?.focus(); } }} placeholder="Enter customer address" rows={1} className="md:col-span-2 w-full px-3 py-2 rounded-md border border-input bg-background text-sm resize-none" />
-              </div>
-            </div>
-
-            {/* Add Medicine to Cart */}
-            <div className="bg-card rounded-lg p-6 border border-border">
-              <h2 className="text-lg font-semibold mb-4">Add Medicine to Cart</h2>
-              <form onSubmit={(e) => { e.preventDefault(); addToCart(e); }}>
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                <div className="relative md:col-span-2">
-                  <label className="block text-sm font-medium mb-2">Medicine Name <span className="text-destructive">*</span></label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <input ref={medicineSearchRef} type="text" value={medicineSearch} onChange={(e) => setMedicineSearch(e.target.value)} onKeyDown={handleMedicineSearchKeyDown} placeholder="Search by generic drug name..." className="w-full h-10 pl-10 pr-3 rounded-md border border-input bg-background text-sm" />
-                    {isLoading && <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin" />}
-                  </div>
-                  {medicineResults.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg max-h-60 overflow-y-auto">
-                      {medicineResults.map((med, index) => (
-                        <div key={med.medicineId} onClick={() => handleSelectMedicine(med)} className={`p-3 cursor-pointer ${activeIndex === index ? 'bg-muted' : 'hover:bg-muted'}`}>
-                          <p className="font-semibold">{med.brandName}</p>
-                          <p className="text-xs text-muted-foreground">{med.composition}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Batch Number <span className="text-destructive">*</span></label>
-                  <select ref={batchSelectRef} value={selectedBatchId} onChange={(e) => setSelectedBatchId(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') quantityRef.current?.focus(); }} className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm" disabled={!selectedMedicine}>
-                    <option value="">Select batch</option>
-                    {selectedMedicine?.batches.map(batch => (
-                      <option key={batch.batchId} value={batch.batchId}>{batch.batchNumber} (Stock: {batch.stockInUnits})</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Quantity <span className="text-destructive">*</span></label>
-                  <input 
-                    ref={quantityRef} 
-                    type="number" 
-                    value={quantity} 
-                    onChange={(e) => setQuantity(e.target.value)} 
-                    onKeyDown={(e) => { 
-                      if (e.key === 'Enter') { 
-                        e.preventDefault(); 
-                        addToCart();
-                      } 
-                    }} 
-                    min="1" 
-                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm" 
+                  <input
+                    ref={doctorNameRef}
+                    type="text"
+                    value={doctorName}
+                    onChange={(e) => setDoctorName(e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, prescriptionNumberRef)}
+                    placeholder="Enter doctor name"
+                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
                   />
-                  {strips > 0 && <p className="text-xs text-muted-foreground mt-1">{strips.toFixed(1)} strips</p>}
-                </div>
-                <div className="md:col-start-5">
-                  <button 
-                    type="submit"
-                    className="w-full h-10 bg-primary text-primary-foreground rounded-md flex items-center justify-center hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={!selectedMedicine || !selectedBatchId || !quantity}
-                  >
-                    <Plus className="h-4 w-4 mr-2" /> Add to Cart
-                  </button>
+                  <input
+                    ref={prescriptionNumberRef}
+                    type="text"
+                    value={prescriptionNumber}
+                    onChange={(e) => setPrescriptionNumber(e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, addressRef)}
+                    placeholder="Enter prescription number"
+                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                  />
+                  <textarea
+                    ref={addressRef}
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    onKeyDown={handleAddressKeyDown}
+                    placeholder="Enter customer address"
+                    rows={1}
+                    className="md:col-span-2 w-full px-3 py-2 rounded-md border border-input bg-background text-sm resize-none"
+                  />
                 </div>
               </div>
-              </form>
-            </div>
 
-            {/* Sales Summary */}
-            <div className="bg-card rounded-lg p-6 border border-border">
-              <h2 className="text-lg font-semibold mb-4">Sales Summary</h2>
-              {cartItems.length > 0 ? (
-                <div className="mb-4 space-y-2 max-h-64 overflow-y-auto">
-                  {cartItems.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                      <div>
-                        <p className="font-medium text-sm">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">Batch: {item.batch} | Qty: {item.quantity} | Price: ₹{item.price.toFixed(2)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold">₹{item.total.toFixed(2)}</p>
-                      </div>
+              {/* Add Medicine to Cart */}
+              <div className="bg-card rounded-lg p-6 border border-border">
+                <h2 className="text-lg font-semibold mb-4">Add Medicine to Cart</h2>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                  <div className="relative md:col-span-2">
+                    <label className="block text-sm font-medium mb-2">Medicine Name <span className="text-destructive">*</span></label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <input
+                        ref={medicineSearchRef}
+                        type="text"
+                        value={medicineSearch}
+                        onChange={(e) => setMedicineSearch(e.target.value)}
+                        onKeyDown={handleMedicineSearchKeyDown}
+                        placeholder="Search by generic drug name..."
+                        className="w-full h-10 pl-10 pr-3 rounded-md border border-input bg-background text-sm"
+                      />
+                      {isLoading && <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin" />}
                     </div>
-                  ))}
-                </div>
-              ) : (<p className="text-muted-foreground text-center py-8">Cart is empty</p>)}
-              <div className="flex justify-between items-center mb-4 border-t pt-4 mt-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Items:</p>
-                  <p className="text-2xl font-bold">{totalItems}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Grand Total:</p>
-                  <p className="text-2xl font-bold">₹{grandTotal.toFixed(2)}</p>
+                    {medicineResults.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        {medicineResults.map((med, index) => (
+                          <div
+                            key={med.medicineId}
+                            onClick={() => handleSelectMedicine(med)}
+                            className={`p-3 cursor-pointer ${activeIndex === index ? 'bg-muted' : 'hover:bg-muted'}`}
+                          >
+                            <p className="font-semibold">{med.brandName}</p>
+                            <p className="text-xs text-muted-foreground">{med.composition}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Batch Number <span className="text-destructive">*</span></label>
+                    <select
+                      ref={batchSelectRef}
+                      value={selectedBatchId}
+                      onChange={(e) => setSelectedBatchId(e.target.value)}
+                      onKeyDown={handleBatchSelectKeyDown}
+                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                      disabled={!selectedMedicine}
+                    >
+                      <option value="">Select batch</option>
+                      {selectedMedicine?.batches.map(batch => (
+                        <option key={batch.batchId} value={batch.batchId}>
+                          {batch.batchNumber} (Stock: {batch.stockInUnits})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Quantity <span className="text-destructive">*</span></label>
+                    <input
+                      ref={quantityRef}
+                      type="number"
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                      onKeyDown={handleQuantityKeyDown}
+                      min="1"
+                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                    />
+                    {strips > 0 && <p className="text-xs text-muted-foreground mt-1">{strips.toFixed(1)} strips</p>}
+                  </div>
+                  <div className="md:col-start-5">
+                    <AnimatedButton
+                      onClick={addToCart}
+                      type="button"
+                      className="w-full bg-primary text-primary-foreground"
+                      disabled={!selectedMedicine || !selectedBatchId || !quantity}
+                    >
+                      <Plus className="h-4 w-4 mr-2" /> Add to Cart
+                    </AnimatedButton>
+                  </div>
                 </div>
               </div>
-              <div className="flex gap-4">
-                <button 
-                  type="button" 
-                  onClick={(e) => { e?.preventDefault(); e?.stopPropagation(); setCartItems([]); }} 
-                  className="flex-1 h-10 border border-input rounded-md hover:bg-muted"
-                >
-                  Clear All
-                </button>
-                <button 
-                  type="button" 
-                  onClick={generateInvoice} 
-                  className="flex-1 h-10 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed" 
-                  disabled={cartItems.length === 0 || (!selectedCustomer && !customerSearch)}
-                >
-                  Generate Invoice
-                </button>
+
+              {/* Sales Summary */}
+              <div className="bg-card rounded-lg p-6 border border-border">
+                <h2 className="text-lg font-semibold mb-4">Sales Summary</h2>
+                {cartItems.length > 0 ? (
+                  <div className="mb-4 space-y-2 max-h-64 overflow-y-auto">
+                    {cartItems.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                        <div>
+                          <p className="font-medium text-sm">{item.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Batch: {item.batch} | Qty: {item.quantity} | Price: ₹{Number(item.price).toFixed(2)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">₹{Number(item.total).toFixed(2)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">Cart is empty</p>
+                )}
+                <div className="flex justify-between items-center mb-4 border-t pt-4 mt-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Items:</p>
+                    <p className="text-2xl font-bold">{totalItems}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">Grand Total:</p>
+                    <p className="text-2xl font-bold">₹{Number(grandTotal).toFixed(2)}</p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <AnimatedButton
+                    type="button"
+                    variant="outline"
+                    onClick={clearAllItems}
+                    className="flex-1"
+                  >
+                    Clear All
+                  </AnimatedButton>
+                  <AnimatedButton
+                    type="button"
+                    onClick={generateInvoice}
+                    className="flex-1 bg-primary text-primary-foreground"
+                    disabled={cartItems.length === 0 || (!selectedCustomer && !customerSearch)}
+                  >
+                    Generate Invoice
+                  </AnimatedButton>
+                </div>
               </div>
             </div>
           </div>

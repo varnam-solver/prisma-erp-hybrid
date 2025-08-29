@@ -1,17 +1,16 @@
 // src/controllers/purchase.controller.ts
 
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import * as PurchaseService from '../services/purchase.service';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
 
-// This will be replaced with real authentication later
-const MOCK_TENANT_ID = '6531932a-804b-4f0a-9f68-ed851aa11178';
-
-// --- Controller to POST (create) a new purchase ---
-export const createNewPurchase = async (req: Request, res: Response) => {
+export const createNewPurchase = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    // The purchase data (supplier_id, items) comes from the request body
-    const newPurchase = await PurchaseService.createPurchase(req.body, MOCK_TENANT_ID);
-    res.status(201).json(newPurchase); // 201 status means "Created"
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) return res.status(401).json({ error: 'Tenant ID missing.' });
+
+    const newPurchase = await PurchaseService.createPurchase(req.body, tenantId);
+    res.status(201).json(newPurchase);
   } catch (error: any) {
     console.error(error);
     res.status(400).json({ error: error.message });

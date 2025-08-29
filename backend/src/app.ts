@@ -6,7 +6,8 @@ import medicineRoutes from './routes/medicine.routes';
 import customerRoutes from './routes/customer.routes';
 import saleRoutes from './routes/sale.routes';
 import supplierRoutes from './routes/supplier.routes';
-import purchaseRoutes from './routes/purchase.routes'; // <-- 1. Import purchase routes
+import purchaseRoutes from './routes/purchase.routes';
+import authRoutes from './routes/auth.routes'; // <-- 1. Import auth routes
 
 const app = express();
 
@@ -15,10 +16,11 @@ app.use(cors());
 app.use(express.json());
 
 // --- API ROUTES ---
+app.use('/api', authRoutes); // <-- 2. Add auth routes
 app.use('/api', medicineRoutes);
 app.use('/api', customerRoutes);
 app.use('/api', saleRoutes);
 app.use('/api', supplierRoutes);
-app.use('/api', purchaseRoutes); // <-- 2. Tell the app to use them
+app.use('/api', purchaseRoutes);
 
 export default app;

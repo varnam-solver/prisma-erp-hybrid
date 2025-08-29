@@ -2,10 +2,12 @@
 
 import { Router } from 'express';
 import { searchMedicines } from '../controllers/medicine.controller';
+import { protect } from '../middleware/auth.middleware'; // 1. Import protect
 
 const router = Router();
 
-// Defines the endpoint: GET /api/medicines/search?q=...
-router.get('/medicines/search', searchMedicines);
+// 2. Add 'protect' before the controller.
+// This ensures only logged-in users can access this route.
+router.get('/medicines/search', protect, searchMedicines);
 
 export default router;

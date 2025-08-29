@@ -5,13 +5,11 @@ import {
   getAllCustomers,
   createNewCustomer,
 } from '../controllers/customer.controller';
+import { protect } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Route to GET all customers for a tenant
-router.get('/customers', getAllCustomers);
-
-// Route to POST (create) a new customer
-router.post('/customers', createNewCustomer);
+router.get('/customers', protect, getAllCustomers);
+router.post('/customers', protect, createNewCustomer);
 
 export default router;

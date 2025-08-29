@@ -1,21 +1,22 @@
 // src/controllers/medicine.controller.ts
 
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import * as MedicineService from '../services/medicine.service';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
 
-// This will be replaced with real authentication later
-const MOCK_TENANT_ID = '6531932a-804b-4f0a-9f68-ed851aa11178';
-
-export const searchMedicines = async (req: Request, res: Response) => {
+export const searchMedicines = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    // The search term will come from a URL query parameter (e.g., /api/medicines/search?q=para)
     const searchTerm = req.query.q as string;
+    const tenantId = req.user?.tenantId; // Get tenantId from the logged-in user's token
 
+    if (!tenantId) {
+      return res.status(401).json({ error: 'Not authorized, tenant ID missing.' });
+    }
     if (!searchTerm) {
       return res.status(400).json({ error: 'Search term (q) is required.' });
     }
 
-    const results = await MedicineService.searchMedicinesByDrug(searchTerm, MOCK_TENANT_ID);
+    const results = await MedicineService.searchMedicinesByDrug(searchTerm, tenantId);
     res.json(results);
 
   } catch (error: any) {

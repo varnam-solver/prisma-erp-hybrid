@@ -13,6 +13,7 @@ import { Header } from "@/components/layout/header"
 import { StatisticCard } from "@/components/ui/statistic-card"
 import { ModuleCard } from "@/components/ui/module-card"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import AIAssistant from "@/components/Assistant/AIAssistant";
 
 // Mock data
 const statistics = [

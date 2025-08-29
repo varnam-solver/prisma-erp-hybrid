@@ -1,17 +1,11 @@
-// src/routes/supplier.routes.ts
+// src/routes/sale.routes.ts
 
 import { Router } from 'express';
-import {
-  getAllSuppliers,
-  createNewSupplier,
-} from '../controllers/supplier.controller';
+import { createNewSale } from '../controllers/sale.controller';
+import { protect } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Route to GET all suppliers for a tenant
-router.get('/suppliers', getAllSuppliers);
-
-// Route to POST (create) a new supplier
-router.post('/suppliers', createNewSupplier);
+router.post('/sales', protect, createNewSale);
 
 export default router;
