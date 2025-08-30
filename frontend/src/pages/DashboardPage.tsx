@@ -1,4 +1,5 @@
 import * as React from "react"
+import apiClient from "@/api/axiosConfig"
 import { 
   DollarSign, 
   Package, 
@@ -15,53 +16,124 @@ import { ModuleCard } from "@/components/ui/module-card"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import AIAssistant from "@/components/Assistant/AIAssistant";
 
+// type definition
+type StatisticCardProps = {
+  title: string;
+  value: string | number;
+  change: string;
+  changeType: "positive" | "negative" | "neutral";
+  icon: React.ReactNode;
+  delay?: number;
+  className?: string;
+};
+
 // Mock data
-const statistics = [
-  {
-    title: "Today's Sales",
-    value: "$12,345",
-    change: "+12.5% from yesterday",
-    changeType: "positive" as const,
-    icon: <DollarSign className="h-4 w-4" />
-  },
-  {
-    title: "Low Stock Items",
-    value: "23",
-    change: "+3 from last week",
-    changeType: "negative" as const,
-    icon: <AlertTriangle className="h-4 w-4" />
-  },
-  {
-    title: "Total Products",
-    value: "1,247",
-    change: "+15 new items",
-    changeType: "positive" as const,
-    icon: <Package className="h-4 w-4" />
-  },
-  {
-    title: "Active Customers",
-    value: "892",
-    change: "+5.2% this month",
-    changeType: "positive" as const,
-    icon: <Users className="h-4 w-4" />
-  }
-]
+// const statistics = [
+//   {
+//     title: "Today's Sales",
+//     value: "$12,345",
+//     change: "+12.5% from yesterday",
+//     changeType: "positive" as const,
+//     icon: <DollarSign className="h-4 w-4" />
+//   },
+//   {
+//     title: "Low Stock Items",
+//     value: "23",
+//     change: "+3 from last week",
+//     changeType: "negative" as const,
+//     icon: <AlertTriangle className="h-4 w-4" />
+//   },
+//   {
+//     title: "Total Products",
+//     value: "1,247",
+//     change: "+15 new items",
+//     changeType: "positive" as const,
+//     icon: <Package className="h-4 w-4" />
+//   },
+//   {
+//     title: "Active Customers",
+//     value: "892",
+//     change: "+5.2% this month",
+//     changeType: "positive" as const,
+//     icon: <Users className="h-4 w-4" />
+//   }
+// ]
 
-const recentSales = [
-  { id: "INV-001", customer: "John Doe", amount: "$245.50", status: "Completed" },
-  { id: "INV-002", customer: "Jane Smith", amount: "$89.25", status: "Pending" },
-  { id: "INV-003", customer: "Mike Johnson", amount: "$156.75", status: "Completed" },
-  { id: "INV-004", customer: "Sarah Wilson", amount: "$67.80", status: "Completed" },
-]
+// const recentSales = [
+//   { id: "INV-001", customer: "John Doe", amount: "$245.50", status: "Completed" },
+//   { id: "INV-002", customer: "Jane Smith", amount: "$89.25", status: "Pending" },
+//   { id: "INV-003", customer: "Mike Johnson", amount: "$156.75", status: "Completed" },
+//   { id: "INV-004", customer: "Sarah Wilson", amount: "$67.80", status: "Completed" },
+// ]
 
-const lowStockItems = [
-  { name: "Paracetamol 500mg", current: 15, minimum: 50, urgency: "high" },
-  { name: "Amoxicillin 250mg", current: 8, minimum: 30, urgency: "high" },
-  { name: "Vitamin C Tablets", current: 25, minimum: 40, urgency: "medium" },
-  { name: "Cough Syrup", current: 12, minimum: 20, urgency: "medium" },
-]
+// const lowStockItems = [
+//   { name: "Paracetamol 500mg", current: 15, minimum: 50, urgency: "high" },
+//   { name: "Amoxicillin 250mg", current: 8, minimum: 30, urgency: "high" },
+//   { name: "Vitamin C Tablets", current: 25, minimum: 40, urgency: "medium" },
+//   { name: "Cough Syrup", current: 12, minimum: 20, urgency: "medium" },
+// ]
 
 export default function DashboardPage() {
+  const [dashboardData, setDashboardData] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const res = await apiClient.get("/dashboard");
+        setDashboardData(res.data);
+      } catch (err) {
+        // handle error
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboard();
+  }, []);
+
+  if (loading) return <div>Loading...</div>;
+  if (!dashboardData) return <div>Failed to load dashboard data.</div>;
+
+  // Example mapping (adjust as per your backend response)
+  const statistics: StatisticCardProps[] = [
+    {
+      title: "Today's Sales",
+      value: `$${dashboardData.statistics.salesToday}`,
+      change: "",
+      changeType: "positive",
+      icon: <DollarSign className="h-4 w-4" />
+    },
+    {
+      title: "Total Products",
+      value: dashboardData.statistics.totalProducts,
+      change: "",
+      changeType: "positive",
+      icon: <Package className="h-4 w-4" />
+    },
+    {
+      title: "Active Customers",
+      value: dashboardData.statistics.activeCustomers,
+      change: "",
+      changeType: "positive",
+      icon: <Users className="h-4 w-4" />
+    },
+    // ...add more as needed
+  ];
+
+  const recentSales = dashboardData.recentSales.map((sale: any) => ({
+    id: sale.id,
+    customer: sale.customer, // <-- FIXED: was sale.customer.name
+    amount: `$${sale.amount}`, // <-- FIXED: was sale.total_amount
+    status: sale.status,
+  }));
+
+  const lowStockItems = dashboardData.lowStockItems.map((item: any) => ({
+    name: item.name, // <-- FIXED: was item.brand_name
+    current: item.current, // <-- FIXED: was item.stock
+    minimum: item.minimum, // <-- FIXED: was item.minimum_stock
+    urgency: item.urgency,
+  }));
+
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
@@ -256,6 +328,7 @@ export default function DashboardPage() {
           </div>
         </main>
       </div>
+      <AIAssistant />
     </div>
   )
 }
