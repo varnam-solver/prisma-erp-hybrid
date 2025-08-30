@@ -1,7 +1,13 @@
 import { Request, Response } from "express";
 import prisma from "../config/db";
+import NodeCache from "node-cache";
+
+const dashboardCache = new NodeCache({ stdTTL: 30 }); // 30 seconds
 
 export const getDashboardData = async (req: Request, res: Response) => {
+  const cached = dashboardCache.get("dashboard");
+  if (cached) return res.json(cached);
+
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -50,33 +56,40 @@ export const getDashboardData = async (req: Request, res: Response) => {
       },
     });
 
-    // 2. For each medicine, sum the stock from inventory_transactions
+    // 2. Get stock for all batches in one query
+    const batchIds = medicines.flatMap((med) => med.medicine_batches.map((b) => b.id));
+    const batchStocks = await prisma.inventory_transactions.groupBy({
+      by: ["batch_id"],
+      where: { batch_id: { in: batchIds } },
+      _sum: { unit_quantity_change: true },
+    });
+
+    // 3. Map batch stock to medicine
+    const batchStockMap = new Map();
+    batchStocks.forEach((bs) => {
+      batchStockMap.set(bs.batch_id, bs._sum.unit_quantity_change ?? 0);
+    });
+
+    const minimum = 50;
     const lowStockItems: Array<{ name: string; current: number; minimum: number; urgency: string }> = [];
-    const minimum = 50; // You can adjust this threshold
 
     for (const med of medicines) {
-      // Get all batch IDs for this medicine
-      const batchIds = med.medicine_batches.map((b) => b.id);
-      if (batchIds.length === 0) continue;
-
-      // Sum all inventory_transactions for these batches
-      const stockAgg = await prisma.inventory_transactions.aggregate({
-        _sum: { unit_quantity_change: true },
-        where: { batch_id: { in: batchIds } },
-      });
-      const current = stockAgg._sum.unit_quantity_change ?? 0;
-      if (current < minimum) {
+      const totalStock = med.medicine_batches.reduce(
+        (sum, b) => sum + (batchStockMap.get(b.id) || 0),
+        0
+      );
+      if (totalStock < minimum) {
         lowStockItems.push({
           name: med.name,
-          current,
+          current: totalStock,
           minimum,
-          urgency: current < minimum / 2 ? "high" : "medium",
+          urgency: totalStock < minimum / 2 ? "high" : "medium",
         });
       }
       if (lowStockItems.length >= 10) break; // Only top 10
     }
 
-    res.json({
+    const dashboard = {
       statistics: {
         salesToday: salesToday._sum.total_amount || 0,
         totalProducts,
@@ -90,7 +103,10 @@ export const getDashboardData = async (req: Request, res: Response) => {
         status: "Completed", // Placeholder
         sale_date: sale.sale_date,
       })),
-    });
+    };
+
+    dashboardCache.set("dashboard", dashboard);
+    res.json(dashboard);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch dashboard data" });
   }

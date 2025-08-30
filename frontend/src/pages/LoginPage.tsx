@@ -38,7 +38,11 @@ export default function LoginPage() {
 
       sendTenantIdToChatbot(user); // Send tenant ID to chatbot on login
 
-      navigate("/dashboard");
+      // Fetch dashboard data before navigating
+      const dashboardData = await apiClient.get("/dashboard");
+
+      // Navigate and pass dashboardData
+      navigate("/dashboard", { state: { dashboardData: dashboardData.data } });
 
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || "An unknown error occurred.";

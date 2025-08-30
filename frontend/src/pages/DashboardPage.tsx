@@ -15,6 +15,7 @@ import { StatisticCard } from "@/components/ui/statistic-card"
 import { ModuleCard } from "@/components/ui/module-card"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import AIAssistant from "@/components/Assistant/AIAssistant";
+import { useLocation } from "react-router-dom";
 
 // type definition
 type StatisticCardProps = {
@@ -73,23 +74,28 @@ type StatisticCardProps = {
 //   { name: "Cough Syrup", current: 12, minimum: 20, urgency: "medium" },
 // ]
 
-export default function DashboardPage() {
-  const [dashboardData, setDashboardData] = React.useState<any>(null);
-  const [loading, setLoading] = React.useState(true);
+const DashboardPage = () => {
+  const location = useLocation();
+  const preloadedData = location.state?.dashboardData;
+
+  const [dashboardData, setDashboardData] = React.useState<any>(preloadedData || null);
+  const [loading, setLoading] = React.useState(!preloadedData);
 
   React.useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        const res = await apiClient.get("/dashboard");
-        setDashboardData(res.data);
-      } catch (err) {
-        // handle error
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDashboard();
-  }, []);
+    if (!preloadedData) {
+      const fetchDashboard = async () => {
+        try {
+          const res = await apiClient.get("/dashboard");
+          setDashboardData(res.data);
+        } catch (err) {
+          // handle error
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchDashboard();
+    }
+  }, [preloadedData]);
 
   if (loading) return <div>Loading...</div>;
   if (!dashboardData) return <div>Failed to load dashboard data.</div>;
@@ -332,3 +338,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+export default DashboardPage;
