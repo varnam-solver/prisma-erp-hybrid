@@ -1,7 +1,6 @@
 // src/services/medicine.service.ts
 
-import { PrismaClient } from '../../generated/prisma';
-const prisma = new PrismaClient();
+import prisma from '../config/db';
 
 /**
  * Searches for medicines based on a generic drug name and returns a detailed
@@ -101,4 +100,24 @@ export const searchMedicinesByDrug = async (searchTerm: string, tenantId: string
   }).filter(medicine => medicine.batches.length > 0); // Only include medicines that have at least one batch in stock
 
   return results;
+};
+
+
+
+/**
+ * Creates a new medicine entry for the tenant.
+ * @param data The medicine data (name, manufacturer, form, gst_rate, etc.)
+ * @param tenantId The tenant's ID
+ */
+export const createMedicine = async (data: any, tenantId: string) => {
+  return prisma.medicines.create({
+    data: {
+      name: data.name, // <-- use 'name' not 'brand_name'
+      manufacturer: data.manufacturer,
+      form: data.form,
+      gst_rate: data.gst_rate,
+      tenant_id: tenantId,
+      // Add other fields as needed from your schema
+    },
+  });
 };

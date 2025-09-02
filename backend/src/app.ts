@@ -1,3 +1,5 @@
+/// <reference path="../types/express.d.ts" />
+
 // src/app.ts
 
 import express from 'express';
@@ -10,6 +12,7 @@ import purchaseRoutes from './routes/purchase.routes';
 import authRoutes from './routes/auth.routes'; // <-- 1. Import auth routes
 import dashboardRoutes from './routes/dashboard.routes'; // <-- 1. Import dashboard routes
 
+
 const app = express();
 
 // --- MIDDLEWARE ---
@@ -21,7 +24,7 @@ app.use('/api', authRoutes); // <-- 2. Add auth routes
 app.use('/api', medicineRoutes);
 app.use('/api', customerRoutes);
 app.use('/api', saleRoutes);
-app.use('/api', supplierRoutes);
+app.use('/api/suppliers', supplierRoutes);
 app.use('/api', purchaseRoutes);
 app.use('/api/dashboard', dashboardRoutes); // <-- 2. Add dashboard routes
 

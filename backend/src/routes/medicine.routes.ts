@@ -1,13 +1,14 @@
 // src/routes/medicine.routes.ts
 
 import { Router } from 'express';
-import { searchMedicines } from '../controllers/medicine.controller';
-import { protect } from '../middleware/auth.middleware'; // 1. Import protect
+import { searchMedicines, createNewMedicine } from '../controllers/medicine.controller';
+import { protect } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// 2. Add 'protect' before the controller.
-// This ensures only logged-in users can access this route.
 router.get('/medicines/search', protect, searchMedicines);
+
+// Add this POST route for creating new medicine:
+router.post('/medicines', protect, createNewMedicine);
 
 export default router;

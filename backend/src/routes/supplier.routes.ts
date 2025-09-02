@@ -1,11 +1,12 @@
-// src/routes/sale.routes.ts
+// src/routes/supplier.routes.ts
 
 import { Router } from 'express';
-import { createNewSale } from '../controllers/sale.controller';
+import { getAllSuppliers, createNewSupplier } from '../controllers/supplier.controller';
 import { protect } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.post('/sales', protect, createNewSale);
+router.get('/', protect, getAllSuppliers);
+router.post('/', protect, createNewSupplier);
 
 export default router;
