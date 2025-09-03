@@ -19,20 +19,22 @@ export const protect = (req: AuthenticatedRequest, res: Response, next: NextFunc
     try {
       // 2. Get the token from the header
       token = req.headers.authorization.split(' ')[1];
-      
       const secret = process.env.JWT_SECRET;
-      
+
       // --- THIS IS THE FIX ---
       // 3. Ensure both the token and the secret key exist before verifying
       if (token && secret) {
         // 4. Verify the token
         const decoded = jwt.verify(token, secret);
 
-        // 5. Attach the user's info to the request object
-        req.user = decoded as { tenantId: string; staffId: string; };
+        console.log("Decoded JWT:", decoded);
 
-        // 6. Proceed to the next function (the controller)
-        next();
+        if (typeof decoded === "object" && decoded !== null && "tenantId" in decoded && "staffId" in decoded) {
+          req.user = decoded as { tenantId: string; staffId: string };
+          next();
+        } else {
+          res.status(401).json({ error: "Invalid token payload" });
+        }
       } else {
         // If token or secret is missing, throw an error
         throw new Error('Token or secret is missing');

@@ -28,7 +28,7 @@ export default function LoginPage() {
       });
 
       const { token, user } = response.data;
-      localStorage.setItem('authToken', token);
+      localStorage.setItem("authToken", token);
       localStorage.setItem('user', JSON.stringify(user));
 
       toast({

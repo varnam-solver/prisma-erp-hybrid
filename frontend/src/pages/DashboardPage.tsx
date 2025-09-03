@@ -156,7 +156,9 @@ const DashboardPage = () => {
                   <div className="h-3 w-3 rounded-full bg-success animate-pulse"></div>
                   <span className="text-sm font-medium text-success">System Online</span>
                 </div>
-                <h1 className="text-3xl font-bold mb-2">Welcome back to <span className="text-primary">CityCare Pharmacy</span></h1>
+                <h1 className="text-3xl font-bold mb-2">
+                  Welcome back to <span className="text-primary">{dashboardData.pharmacyName}</span>
+                </h1>
                 <p className="text-muted-foreground">
                   Complete pharmacy management at your fingertips - every module accessible instantly.
                 </p>

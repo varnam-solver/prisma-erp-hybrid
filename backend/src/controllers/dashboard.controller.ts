@@ -5,7 +5,24 @@ import NodeCache from "node-cache";
 const dashboardCache = new NodeCache({ stdTTL: 30 }); // 30 seconds
 
 export const getDashboardData = async (req: Request, res: Response) => {
-  const cached = dashboardCache.get("dashboard");
+  console.log("req.user in dashboard:", (req as any).user); // <-- Add this line
+
+  const tenantId = (req as any).user?.tenantId;
+  if (!tenantId) {
+    return res.status(401).json({ error: "Unauthorized: tenantId missing" });
+  }
+
+  const pharmacy = await prisma.tenants.findUnique({
+    where: { id: tenantId },
+    select: { name: true },
+  });
+  if (!pharmacy) {
+    return res.status(404).json({ error: "Pharmacy not found for this tenant." });
+  }
+
+  // Use tenant-specific cache key
+  const cacheKey = `dashboard_${tenantId}`;
+  const cached = dashboardCache.get(cacheKey);
   if (cached) return res.json(cached);
 
   try {
@@ -90,6 +107,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
     }
 
     const dashboard = {
+      pharmacyName: pharmacy?.name ?? "Your Pharmacy",
       statistics: {
         salesToday: salesToday._sum.total_amount || 0,
         totalProducts,
@@ -105,7 +123,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
       })),
     };
 
-    dashboardCache.set("dashboard", dashboard);
+    dashboardCache.set(cacheKey, dashboard);
     res.json(dashboard);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch dashboard data" });

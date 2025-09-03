@@ -37,10 +37,12 @@ export const loginUser = async (email: string, password: string) => {
   const tokenPayload = {
     userId: user.id,
     staffId: staffProfile.id,
-    tenantId: staffProfile.tenant_id,
+    tenantId: staffProfile.tenant_id, // <-- must be present!
     roleId: staffProfile.role_id,
   };
-  
+
+  console.log("Token payload:", tokenPayload); // <-- Add this line
+
   const secret = process.env.JWT_SECRET;
   if (!secret) {
       throw new Error('JWT_SECRET is not defined in the environment variables.');

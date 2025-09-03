@@ -11,21 +11,12 @@ const apiClient = axios.create({
 
 // This is an "interceptor" - a piece of code that runs
 // BEFORE each request is sent.
-apiClient.interceptors.request.use(
-  (config) => {
-    // 1. Get the token from localStorage
-    const token = localStorage.getItem('authToken');
-
-    // 2. If the token exists, add it to the Authorization header
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem("authToken"); // <-- use "authToken"
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  return config;
+});
 
 export default apiClient;
